@@ -137,11 +137,27 @@ function filterCategory(cat) {
 function getFilteredPool() {
   if (currentCategoryFilter === 'motorcycle') {
     return DATABASE.filter(function(o) {
-      return o.vehicle === 'motorcycle' || (o.vehicle === 'all' && !o.canonical.toLowerCase().includes('ô tô'));
+      if (o.vehicle === 'motorcycle') return true;
+      if (o.vehicle === 'all') {
+        var lower = o.canonical.toLowerCase();
+        var labelLower = o.vehicleLabel.toLowerCase();
+        if (lower.includes('mô tô') || lower.includes('xe máy') || labelLower.includes('mô tô') || labelLower.includes('xe máy')) return true;
+        if (lower.startsWith('[chủ xe ô tô]') && !lower.includes('mô tô') && !lower.includes('xe máy')) return false;
+        return true;
+      }
+      return false;
     });
   } else if (currentCategoryFilter === 'car') {
     return DATABASE.filter(function(o) {
-      return o.vehicle === 'car' || (o.vehicle === 'all' && !o.canonical.toLowerCase().includes('mô tô') && !o.canonical.toLowerCase().includes('xe máy'));
+      if (o.vehicle === 'car') return true;
+      if (o.vehicle === 'all') {
+        var lower = o.canonical.toLowerCase();
+        var labelLower = o.vehicleLabel.toLowerCase();
+        if (lower.includes('ô tô') || labelLower.includes('ô tô')) return true;
+        if (lower.startsWith('[chủ xe mô tô]') && !lower.includes('ô tô')) return false;
+        return true;
+      }
+      return false;
     });
   } else if (currentCategoryFilter === 'DRIVER') {
     return DATABASE.filter(function(o) { return o.category === 'DRIVER'; });
@@ -158,7 +174,16 @@ function getFilteredPool() {
 }
 
 function renderOffenseCard(off) {
-  var fineText = off.isWarning ? 'Phạt cảnh cáo' : (formatMoney(off.fineMin) + ' - ' + formatMoney(off.fineMax) + ' đồng');
+  var fineText = '';
+  if (off.isConfiscation && (!off.fineMin || off.fineMin === 0)) {
+    fineText = '🚨 TỊCH THU PHƯƠNG TIỆN';
+  } else if (off.isWarning) {
+    fineText = 'Phạt cảnh cáo';
+  } else if (off.fineMin && off.fineMax) {
+    fineText = formatMoney(off.fineMin) + ' - ' + formatMoney(off.fineMax) + ' đồng';
+  } else {
+    fineText = 'Tịch thu phương tiện';
+  }
   var midpoint = (off.fineMin && off.fineMax) ? Math.round((off.fineMin + off.fineMax) / 2) : null;
 
   var orgText = '';
@@ -169,6 +194,7 @@ function renderOffenseCard(off) {
 
   var pointsBadge = off.points ? '<span class="badge badge-points">Trừ ' + off.points + 'đ GPLX</span>' : '';
   var suspBadge = off.suspension ? '<span class="badge badge-suspension">🚫 Tước GPLX ' + off.suspension + '</span>' : '';
+  var confBadge = off.isConfiscation ? '<span class="badge badge-confiscation">🚨 Tịch thu xe</span>' : '';
   var detBadge = off.detention ? '<span class="badge badge-detention">Tạm giữ xe (Đ.48)</span>' : '';
   var remedyBadge = off.hasRemedy ? '<span class="badge badge-remedy">🔧 Khắc phục hậu quả</span>' : '';
   var editBadge = off.sourceNote ? '<span class="badge badge-edit">Sửa bởi NĐ 238</span>' : '';
@@ -181,12 +207,12 @@ function renderOffenseCard(off) {
     '</div>' +
     '<div class="offense-name">' + off.canonical + '</div>' +
     '<div class="fine-row">' +
-      '<div class="fine-amount ' + (off.isWarning ? 'fine-warning' : '') + '">' + fineText + '</div>' +
+      '<div class="fine-amount ' + (off.isWarning ? 'fine-warning' : (off.isConfiscation && !off.fineMin ? 'fine-warning' : '')) + '">' + fineText + '</div>' +
       midBadge +
     '</div>' +
     orgText +
     '<div class="badges-row">' +
-      pointsBadge + suspBadge + detBadge + remedyBadge + editBadge +
+      confBadge + pointsBadge + suspBadge + detBadge + remedyBadge + editBadge +
     '</div>' +
   '</div>';
 }
@@ -361,6 +387,20 @@ function performSearch() {
     matchReason = 'Khớp hành vi dùng tay cầm và sử dụng điện thoại khi điều khiển xe';
   }
 
+
+  // 15. Đục sửa số khung, số máy / Tịch thu xe
+  if (matched.length === 0 && (unaccented.includes('duc so khung') || unaccented.includes('duc sua') || unaccented.includes('so khung') || unaccented.includes('so may') || unaccented.includes('dong lai') || unaccented.includes('cat han') || unaccented.includes('tich thu xe'))) {
+    matched = pool.filter(function(o) {
+      return (o.articleNo === 32 && o.clauseNo === '17') ||
+             (o.articleNo === 7 && o.clauseNo === '11') ||
+             (o.articleNo === 6 && o.clauseNo === '14') ||
+             o.isConfiscation ||
+             o.canonical.toLowerCase().includes('số khung') ||
+             o.canonical.toLowerCase().includes('số máy');
+    });
+    matchReason = 'Khớp quy định về tịch thu phương tiện / cắt hàn đục sửa số khung số máy (Khoản 17 Điều 32 / Khoản 11 Điều 7)';
+  }
+
   // 9. Mirrors
   if (matched.length === 0 && (unaccented.includes('guong') || unaccented.includes('kinh chieu hau'))) {
     matched = pool.filter(function(o) { return (o.articleNo === 14 && o.clauseNo === '1' && o.pointNo === 'a') || (o.articleNo === 13 && o.clauseNo === '1' && o.pointNo === 'a'); });
@@ -386,9 +426,29 @@ function performSearch() {
     var isAlcoholQuery = unaccented.includes('con') || unaccented.includes('ndc') || unaccented.includes('thoi con');
     var isRoiVaiQuery = unaccented.includes('roi vai') || unaccented.includes('che bat') || unaccented.includes('bun dat') || unaccented.includes('do rac') || unaccented.includes('vat lieu');
     var isTrafficLightQuery = unaccented.includes('den do') || unaccented.includes('vuot den') || unaccented.includes('den vang');
+    var isConfiscationQuery = unaccented.includes('duc so khung') || unaccented.includes('duc sua') || unaccented.includes('so khung') || unaccented.includes('so may') || unaccented.includes('cat han') || unaccented.includes('dong lai') || unaccented.includes('tich thu xe');
 
     var hudContent = '';
-    if (isRoiVaiQuery) {
+    if (isConfiscationQuery) {
+      hudContent = '<div class="case-hud" style="background:#FFEBEE; border-color:#FFCDD2;">' +
+        '<div class="hud-title" style="color:#D50000;">🚨 QUY ĐỊNH TỊCH THU PHƯƠNG TIỆN (ĐIỀU 32 & ĐIỀU 7)</div>' +
+        '<div style="font-size: 13px; line-height: 1.55; color: #212121;">' +
+          '<div style="background:white; padding:8px 10px; border-radius:8px; margin-bottom:6px; border:1px solid #FFCDD2;">' +
+            '🔨 <b>Cắt, hàn, tẩy xoá, đục sửa, đóng lại trái phép số khung, số động cơ (số máy):</b><br>' +
+            '• Hình thức xử phạt: <span style="color:#D50000; font-weight:900;">TỊCH THU PHƯƠNG TIỆN</span> (Điểm a Khoản 17 Điều 32)<br>' +
+            '• Tạm giữ: <span style="color:#D84315; font-weight:bold;">Tạm giữ phương tiện để tịch thu theo Khoản 1 Điểm l Điều 48.</span>' +
+          '</div>' +
+          '<div style="background:white; padding:8px 10px; border-radius:8px; margin-bottom:6px; border:1px solid #FFCDD2;">' +
+            '🚘 <b>Cải tạo xe khác thành xe chở người / Xe quá niên hạn sử dụng:</b><br>' +
+            '• Hình thức xử phạt: <span style="color:#D50000; font-weight:900;">TỊCH THU PHƯƠNG TIỆN</span> (Điểm b, c Khoản 17 Điều 32)' +
+          '</div>' +
+          '<div style="background:white; padding:8px 10px; border-radius:8px; border:1px solid #FFCDD2;">' +
+            '🏍️ <b>Buông 2 tay, dùng chân lái, bốc đầu 1 bánh, tái phạm lạng lách:</b><br>' +
+            '• Hình thức xử phạt: <span style="color:#D50000; font-weight:900;">TỊCH THU PHƯƠNG TIỆN</span> + <span style="color:#6A1B9A; font-weight:bold;">Tước GPLX 22 - 24 tháng</span> (Khoản 11 & Khoản 12 Điều 7)' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    } else if (isRoiVaiQuery) {
       hudContent = '<div class="case-hud">' +
         '<div class="hud-title">⚖️ QUY ĐỊNH CHỞ HÀNG RƠI VÃI & BẢO VỆ MÔI TRƯỜNG (ĐIỀU 17 & 36)</div>' +
         '<div style="font-size: 13px; line-height: 1.55; color: #212121;">' +
@@ -499,6 +559,7 @@ function performSearch() {
       var midSum = Math.round((fineSumMin + fineSumMax) / 2);
       var maxPoints = Math.max.apply(null, [0].concat(matched.map(function(o) { return o.points || 0; })));
       var hasDetention = matched.some(function(o) { return o.detention; });
+      var hasConfiscation = matched.some(function(o) { return o.isConfiscation; });
       var remediesList = [];
       matched.forEach(function(o) {
         if (o.remedies && o.remedies.length > 0) {
@@ -506,12 +567,19 @@ function performSearch() {
         }
       });
 
-      hudContent = '<div class="case-hud">' +
-        '<div class="hud-title">⚖️ ĐÁNH GIÁ TỔNG HỢP VỤ VIỆC</div>' +
-        '<div style="display:flex; align-items:baseline; gap:8px; flex-wrap:wrap;">' +
+      var mainPenaltyHtml = '';
+      if (hasConfiscation && fineSumMin === 0 && fineSumMax === 0) {
+        mainPenaltyHtml = '<div style="font-weight:900; color:#D50000; font-size:15px;">Hình thức xử phạt chính: 🚨 TỊCH THU PHƯƠNG TIỆN</div>';
+      } else {
+        mainPenaltyHtml = '<div style="display:flex; align-items:baseline; gap:8px; flex-wrap:wrap;">' +
           '<div style="font-weight:bold; color:var(--danger); font-size:14.5px;">Mức phạt tiền: ' + formatMoney(fineSumMin) + ' - ' + formatMoney(fineSumMax) + ' đồng</div>' +
           '<div class="fine-midpoint">Mức TB: ' + formatMoney(midSum) + '</div>' +
-        '</div>' +
+        '</div>';
+      }
+
+      hudContent = '<div class="case-hud">' +
+        '<div class="hud-title">⚖️ ĐÁNH GIÁ TỔNG HỢP VỤ VIỆC</div>' +
+        mainPenaltyHtml +
         (maxPoints > 0 ? '<div style="font-weight:700; color:#D32F2F; font-size:12.5px; margin-top:3px;">Trừ điểm GPLX: <b>' + maxPoints + ' điểm</b> (Áp dụng Điều 50.1.b: Chỉ trừ điểm lỗi cao nhất)</div>' : '') +
         (hasDetention ? '<div style="font-weight:700; color:#D84315; font-size:12.5px; margin-top:3px;">Biện pháp ngăn chặn: Tạm giữ phương tiện theo Điều 48</div>' : '') +
         (remediesList.length > 0 ? '<div style="font-weight:700; color:#00695C; font-size:12.5px; margin-top:3px;">Biện pháp khắc phục hậu quả: ' + remediesList.join('; ') + '</div>' : '') +
@@ -763,9 +831,10 @@ function openDetailModal(id) {
     '<div style="font-size:16px; font-weight:800; margin-bottom:10px; color:#212121;">' + off.canonical + '</div>' +
     '<div style="margin-bottom:12px;">' +
       '<div style="font-size:18px; font-weight:900; color:var(--danger);">' +
-        (off.isWarning ? 'Phạt cảnh cáo' : (formatMoney(off.fineMin) + ' - ' + formatMoney(off.fineMax) + ' đồng')) +
+        (off.isConfiscation && (!off.fineMin || off.fineMin === 0) ? '🚨 TỊCH THU PHƯƠNG TIỆN' : (off.isWarning ? 'Phạt cảnh cáo' : (formatMoney(off.fineMin) + ' - ' + formatMoney(off.fineMax) + ' đồng'))) +
       '</div>' +
       midHtml +
+      (off.isConfiscation ? '<div style="margin-top:6px; background:#FFEBEE; color:#B71C1C; border-left:3px solid #D50000; padding:8px 10px; border-radius:6px; font-size:13px; font-weight:800;">🚨 HÌNH THỨC XỬ PHẠT: ' + (off.confiscation || 'Tịch thu phương tiện theo quy định') + '</div>' : '') +
     '</div>' +
     '<div style="font-weight:700; font-size:12.5px; color:var(--primary); margin-bottom:3px;">1. Quy định chi tiết:</div>' +
     '<div style="font-size:13px; margin-bottom:12px; color:#37474F; line-height:1.45;">' + (off.fullDescription || off.desc || off.canonical) + '</div>' +

@@ -232,6 +232,7 @@ const htmlHeader = `<!DOCTYPE html>
     .badge-points { background: #FFEBEE; color: #C62828; border: 1px solid #FFCDD2; }
     .badge-detention { background: #FBE9E7; color: #D84315; border: 1px solid #FFCCBC; }
     .badge-remedy { background: #E0F2F1; color: #00695C; border: 1px solid #80CBC4; }
+    .badge-confiscation { background: #FFEBEE; color: #D50000; border: 1.5px solid #FF1744; font-weight: 800; }
     .badge-edit { background: #E0F7FA; color: #00838F; }
 
     /* Case HUD */
@@ -411,6 +412,7 @@ const htmlHeader = `<!DOCTYPE html>
         <div class="chip" onclick="quickSearch('điểm g khoản 2 điều 7')">điểm g khoản 2 điều 7</div>
         <div class="chip" onclick="quickSearch('không gương')">không gương</div>
         <div class="chip" onclick="quickSearch('quá tải')">quá tải (10% - 150%)</div>
+        <div class="chip" onclick="quickSearch('đục sửa số khung')">đục sửa số khung (tịch thu xe)</div>
       </div>
 
       <!-- Case HUD if search applied -->
