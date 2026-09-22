@@ -1,7 +1,47 @@
 // TRA LỖI GT PRO - CORE CLIENT APPLICATION
 
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('./service-worker.js').catch(function() {});
+  navigator.serviceWorker.register('./service-worker.js').then(function(reg) {
+    reg.onupdatefound = function() {
+      var installingWorker = reg.installing;
+      installingWorker.onstatechange = function() {
+        if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+          // New version available
+          console.log('[PWA] New version installed and ready.');
+        }
+      };
+    };
+  }).catch(function() {});
+
+  var refreshing = false;
+  navigator.serviceWorker.addEventListener('controllerchange', function() {
+    if (!refreshing) {
+      refreshing = true;
+      window.location.reload();
+    }
+  });
+}
+
+function forceRefreshApp() {
+  if (confirm('Tải và cập nhật toàn bộ dữ liệu mới nhất (678 lỗi)?')) {
+    if ('caches' in window) {
+      caches.keys().then(function(keys) {
+        return Promise.all(keys.map(function(k) { return caches.delete(k); }));
+      }).then(function() {
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.getRegistrations().then(function(regs) {
+            return Promise.all(regs.map(function(r) { return r.unregister(); }));
+          }).then(function() {
+            window.location.href = window.location.origin + window.location.pathname + '?v=' + Date.now();
+          });
+        } else {
+          window.location.href = window.location.origin + window.location.pathname + '?v=' + Date.now();
+        }
+      });
+    } else {
+      window.location.reload();
+    }
+  }
 }
 
 var DATABASE = [];

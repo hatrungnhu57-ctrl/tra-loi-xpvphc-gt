@@ -369,7 +369,10 @@ const htmlHeader = `<!DOCTYPE html>
           <span>⚖️ TRA LỖI GT PRO</span>
           <span class="badge-offline">OFFLINE</span>
         </div>
-        <div style="font-size: 11.5px; color: #BBDEFB;">NĐ 168 & NĐ 238</div>
+        <div style="font-size: 11.5px; color: #BBDEFB; display: flex; align-items: center; gap: 8px;">
+          <span>NĐ 168 & NĐ 238</span>
+          <button style="background: rgba(255,255,255,0.22); border: 1px solid rgba(255,255,255,0.45); color: white; font-size: 11px; font-weight: 800; padding: 2px 7px; border-radius: 10px; cursor: pointer;" onclick="forceRefreshApp()">🔄 Cập nhật mới</button>
+        </div>
       </div>
       <div class="search-box">
         <input type="text" id="searchInput" placeholder="Tra cứu: mũ bảo hiểm, 150cc k gplx, 76/60..." />
