@@ -386,7 +386,7 @@ const htmlHeader = `<!DOCTYPE html>
     <div id="viewHome">
       <!-- Category Filter Pills -->
       <div class="cat-pills-row">
-        <button class="cat-pill active" id="catAll" onclick="filterCategory('all')">Tất cả (475 lỗi)</button>
+        <button class="cat-pill active" id="catAll" onclick="filterCategory('all')">Tất cả (678 lỗi)</button>
         <button class="cat-pill" id="catMoto" onclick="filterCategory('motorcycle')">🏍️ Xe Máy</button>
         <button class="cat-pill" id="catCar" onclick="filterCategory('car')">🚗 Xe Ô tô</button>
         <button class="cat-pill" id="catDriver" onclick="filterCategory('DRIVER')">🪪 GPLX & Giấy tờ</button>
@@ -413,7 +413,7 @@ const htmlHeader = `<!DOCTYPE html>
       <!-- Case HUD if search applied -->
       <div id="caseHudContainer" style="display: none;"></div>
 
-      <div style="font-size: 14.5px; font-weight: 800; margin: 12px 0 8px;" id="resultsHeader">Toàn bộ 475 hành vi vi phạm (NĐ 168/2024 & NĐ 238/2026):</div>
+      <div style="font-size: 14.5px; font-weight: 800; margin: 12px 0 8px;" id="resultsHeader">Toàn bộ 678 hành vi vi phạm (NĐ 168/2024 & NĐ 238/2026):</div>
       <div id="offenseList"></div>
     </div>
 
@@ -632,11 +632,11 @@ const htmlHeader = `<!DOCTYPE html>
 
   <script>
     var DATABASE_JSON_STR = ${JSON.stringify(fullDb)};
+    ${appJs}
   </script>
-  <script src="app.js"></script>
 </body>
 </html>`;
 
 fs.writeFileSync(path.join(__dirname, 'index.html'), htmlHeader, 'utf8');
 fs.writeFileSync(path.join(__dirname, 'web/public/index.html'), htmlHeader, 'utf8');
-console.log('Successfully bundled index.html and app.js');
+console.log('Successfully bundled self-contained index.html with inlined app.js and database');
