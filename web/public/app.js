@@ -4,8 +4,8 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./service-worker.js').catch(function() {});
 }
 
-// Fetch or load DATABASE
 var DATABASE = [];
+var currentCategoryFilter = 'all';
 
 function removeDiacritics(str) {
   if (!str) return '';
@@ -70,7 +70,6 @@ function startVoiceRecognition() {
   recognition.onend = function() { if (micBtn) micBtn.innerText = '🎙️'; };
 }
 
-var currentCategoryFilter = 'all';
 function filterCategory(cat) {
   currentCategoryFilter = cat;
   var pills = ['catAll', 'catMoto', 'catCar', 'catDriver', 'catRemedy', 'catTransport', 'catOwner', 'catVehicle'];
@@ -92,28 +91,30 @@ function filterCategory(cat) {
   var activeEl = document.getElementById(activeMap[cat] || 'catAll');
   if (activeEl) activeEl.classList.add('active');
 
-  if (cat === 'all') {
-    document.getElementById('resultsHeader').innerText = 'Toàn bộ ' + DATABASE.length + ' hành vi vi phạm (NĐ 168/2024 & NĐ 238/2026):';
-    renderList(DATABASE);
-  } else if (cat === 'REMEDY') {
-    var filtered = DATABASE.filter(function(o) { return o.hasRemedy; });
-    document.getElementById('resultsHeader').innerText = 'Danh mục có áp dụng Biện pháp khắc phục hậu quả (' + filtered.length + ' hành vi):';
-    renderList(filtered);
-  } else if (cat === 'motorcycle' || cat === 'car') {
-    var filtered = DATABASE.filter(function(o) { return o.vehicle === cat || o.vehicle === 'all'; });
-    document.getElementById('resultsHeader').innerText = 'Danh mục ' + (cat === 'car' ? 'Xe Ô tô' : 'Xe Mô tô') + ' (' + filtered.length + ' hành vi):';
-    renderList(filtered);
-  } else {
-    var filtered = DATABASE.filter(function(o) { return o.category === cat; });
-    var catLabels = {
-      'DRIVER': 'GPLX, Giấy tờ & Độ tuổi (Điều 18)',
-      'TRANSPORT': 'Vận tải hành khách & Quá tải (Điều 20, 21)',
-      'OWNER': 'Trách nhiệm Chủ phương tiện (Điều 32)',
-      'VEHICLE': 'Thiết bị kỹ thuật & Đăng kiểm (Điều 13, 14, 16)'
-    };
-    document.getElementById('resultsHeader').innerText = 'Danh mục ' + (catLabels[cat] || cat) + ' (' + filtered.length + ' hành vi):';
-    renderList(filtered);
+  performSearch();
+}
+
+function getFilteredPool() {
+  if (currentCategoryFilter === 'motorcycle') {
+    return DATABASE.filter(function(o) {
+      return o.vehicle === 'motorcycle' || (o.vehicle === 'all' && !o.canonical.toLowerCase().includes('ô tô'));
+    });
+  } else if (currentCategoryFilter === 'car') {
+    return DATABASE.filter(function(o) {
+      return o.vehicle === 'car' || (o.vehicle === 'all' && !o.canonical.toLowerCase().includes('mô tô') && !o.canonical.toLowerCase().includes('xe máy'));
+    });
+  } else if (currentCategoryFilter === 'DRIVER') {
+    return DATABASE.filter(function(o) { return o.category === 'DRIVER'; });
+  } else if (currentCategoryFilter === 'REMEDY') {
+    return DATABASE.filter(function(o) { return o.hasRemedy; });
+  } else if (currentCategoryFilter === 'TRANSPORT') {
+    return DATABASE.filter(function(o) { return o.category === 'TRANSPORT'; });
+  } else if (currentCategoryFilter === 'OWNER') {
+    return DATABASE.filter(function(o) { return o.category === 'OWNER'; });
+  } else if (currentCategoryFilter === 'VEHICLE') {
+    return DATABASE.filter(function(o) { return o.category === 'VEHICLE'; });
   }
+  return DATABASE;
 }
 
 function renderOffenseCard(off) {
@@ -159,10 +160,28 @@ function renderList(list) {
 }
 
 function performSearch() {
+  var pool = getFilteredPool();
   var inputEl = document.getElementById('searchInput');
   var query = inputEl ? inputEl.value.trim() : '';
+
+  var headerEl = document.getElementById('resultsHeader');
+  if (headerEl) {
+    var catLabels = {
+      'all': 'Toàn bộ',
+      'motorcycle': 'Xe Mô tô / Xe máy',
+      'car': 'Xe Ô tô',
+      'DRIVER': 'GPLX, Giấy tờ & Độ tuổi',
+      'REMEDY': 'Có biện pháp khắc phục hậu quả',
+      'TRANSPORT': 'Vận tải hành khách & Quá tải',
+      'OWNER': 'Trách nhiệm Chủ phương tiện (Điều 32)',
+      'VEHICLE': 'Thiết bị kỹ thuật & Đăng kiểm'
+    };
+    var catName = catLabels[currentCategoryFilter] || 'Danh mục';
+    headerEl.innerText = query ? (catName + ' - Kết quả tìm kiếm cho: "' + query + '"') : (catName + ' (' + pool.length + ' hành vi):');
+  }
+
   if (!query) {
-    renderList(DATABASE);
+    renderList(pool);
     document.getElementById('caseHudContainer').style.display = 'none';
     return;
   }
@@ -183,64 +202,84 @@ function performSearch() {
     var pNo = (m1 ? m1[1] : mDot[1]).toLowerCase();
     var kNo = (m1 ? m1[2] : mDot[2]).toLowerCase();
     var dNo = m1 ? m1[3] : mDot[3];
-    matched = DATABASE.filter(function(o) { return o.primaryRef.toLowerCase().includes('điều ' + dNo) && o.primaryRef.toLowerCase().includes('khoản ' + kNo); });
+    matched = pool.filter(function(o) { return o.primaryRef.toLowerCase().includes('điều ' + dNo) && o.primaryRef.toLowerCase().includes('khoản ' + kNo); });
     matchReason = 'Khớp trích dẫn Điều ' + dNo + ' Khoản ' + kNo;
   }
 
-  // 2. Speed 76/60
+  // 2. Overload (Quá tải trọng Điều 21 & Điều 32)
+  if (matched.length === 0 && (unaccented.includes('qua tai') || unaccented.includes('tai trong') || unaccented.includes('tai xe') || unaccented.includes('cho qua tai'))) {
+    matched = pool.filter(function(o) {
+      var cl = o.clauseNo ? o.clauseNo.toString() : '';
+      return (o.articleNo === 21 && ['2','5','6','7','8'].includes(cl)) ||
+             (o.articleNo === 32 && ['7','11','13','15','16'].includes(cl) && (o.canonical.includes('quá') || o.canonical.includes('hàng hóa') || o.canonical.includes('trọng tải')));
+    });
+    matchReason = 'Khớp quy định về xe chở hàng quá tải trọng cho phép (Điều 21 & Điều 32)';
+  }
+
+  // 3. Alcohol (Cồn)
+  if (matched.length === 0 && (unaccented.includes('con') || unaccented.includes('ndc') || unaccented.includes('thoi con') || unaccented.includes('0.'))) {
+    var alc = unaccented.match(/0\.[0-9]+/);
+    if (alc && parseFloat(alc[0]) > 0.25 && parseFloat(alc[0]) <= 0.40) {
+      matched = pool.filter(function(o) {
+        return (o.articleNo === 7 && o.clauseNo === '8' && o.pointNo === 'b') ||
+               (o.articleNo === 6 && o.clauseNo === '9' && o.pointNo === 'a');
+      });
+      matchReason = 'Khớp nồng độ cồn ' + alc[0] + ' mg/L (Mức 2: Điểm b Khoản 8 Điều 7 / Điểm a Khoản 9 Điều 6)';
+    } else {
+      matched = pool.filter(function(o) {
+        return (o.articleNo === 7 && ['6','8','9'].includes(o.clauseNo ? o.clauseNo.toString() : '')) ||
+               (o.articleNo === 6 && ['6','9','11'].includes(o.clauseNo ? o.clauseNo.toString() : '')) ||
+               o.canonical.toLowerCase().includes('nồng độ cồn');
+      });
+      matchReason = 'Khớp các khung vi phạm nồng độ cồn';
+    }
+  }
+
+  // 4. Speed 76/60
   if (matched.length === 0 && unaccented.includes('/')) {
     var slash = unaccented.match(/([0-9]{2,3})\s*\/\s*([0-9]{2,3})/);
     if (slash) {
       var excess = parseFloat(slash[1]) - parseFloat(slash[2]);
       if (excess >= 10 && excess <= 20) {
-        matched = DATABASE.filter(function(o) { return o.code.includes('006-05-D') || (o.articleNo === 6 && o.clauseNo === '5' && o.pointNo === 'đ'); });
+        matched = pool.filter(function(o) { return o.code.includes('006-05-D') || (o.articleNo === 6 && o.clauseNo === '5' && o.pointNo === 'đ'); });
         matchReason = 'Khớp tốc độ vượt ' + excess + ' km/h (khung 10-20 km/h: Điểm đ Khoản 5 Điều 6)';
       }
     }
   }
 
-  // 3. Alcohol 0.32
-  if (matched.length === 0 && (unaccented.includes('con') || unaccented.includes('0.'))) {
-    var alc = unaccented.match(/0\.[0-9]+/);
-    if (alc && parseFloat(alc[0]) > 0.25 && parseFloat(alc[0]) <= 0.40) {
-      matched = DATABASE.filter(function(o) { return o.code.includes('007-08-B') || (o.articleNo === 7 && o.clauseNo === '8' && o.pointNo === 'b'); });
-      matchReason = 'Khớp nồng độ cồn ' + alc[0] + ' mg/L (Mức 2: Điểm b Khoản 8 Điều 7)';
-    }
-  }
-
-  // 4. Helmet match
+  // 5. Helmet match
   if (matched.length === 0 && (unaccented.includes('mu') || unaccented.includes('non') || unaccented.includes('mbh') || unaccented.includes('cai quai'))) {
-    matched = DATABASE.filter(function(o) { return (o.articleNo === 7 && o.clauseNo === '2' && (o.pointNo === 'h' || o.pointNo === 'i')) || (o.articleNo === 9 && o.clauseNo === '4' && (o.pointNo === 'd' || o.pointNo === 'đ')); });
+    matched = pool.filter(function(o) { return (o.articleNo === 7 && o.clauseNo === '2' && (o.pointNo === 'h' || o.pointNo === 'i')) || (o.articleNo === 9 && o.clauseNo === '4' && (o.pointNo === 'd' || o.pointNo === 'đ')); });
     matchReason = 'Khớp quy định về đội mũ bảo hiểm và cài quai đúng quy cách (Khoản 2 Điều 7)';
   }
 
-  // 5. 150cc license
+  // 6. 150cc license
   if (matched.length === 0 && (unaccented.includes('150') && (unaccented.includes('khong bang') || unaccented.includes('k gplx') || unaccented.includes('k bang')))) {
-    matched = DATABASE.filter(function(o) { return o.code.includes('018-07-B') || (o.articleNo === 18 && o.clauseNo === '7' && o.pointNo === 'b'); });
+    matched = pool.filter(function(o) { return o.code.includes('018-07-B') || (o.articleNo === 18 && o.clauseNo === '7' && o.pointNo === 'b'); });
     matchReason = 'Khớp lỗi không có GPLX xe mô tô > 125cm3 (Điểm b Khoản 7 Điều 18)';
   }
 
-  // 6. Kep 3
+  // 7. Kep 3
   if (matched.length === 0 && (unaccented.includes('kep 3') || unaccented.includes('cho 3'))) {
-    matched = DATABASE.filter(function(o) { return o.code.includes('007-03-B') || (o.articleNo === 7 && o.clauseNo === '3' && o.pointNo === 'b'); });
+    matched = pool.filter(function(o) { return o.code.includes('007-03-B') || (o.articleNo === 7 && o.clauseNo === '3' && o.pointNo === 'b'); });
     matchReason = 'Khớp hành vi kẹp 3 xe máy (Điểm b Khoản 3 Điều 7)';
   }
 
-  // 7. Owner handover
+  // 8. Owner handover
   if (matched.length === 0 && unaccented.includes('giao xe')) {
-    matched = DATABASE.filter(function(o) { return o.code.includes('032-10') || (o.articleNo === 32 && o.clauseNo === '10'); });
+    matched = pool.filter(function(o) { return o.code.includes('032-10') || (o.articleNo === 32 && o.clauseNo === '10'); });
     matchReason = 'Khớp trách nhiệm chủ xe giao xe cho người không đủ ĐK (Khoản 10 Điều 32)';
   }
 
-  // 8. Mirrors
+  // 9. Mirrors
   if (matched.length === 0 && (unaccented.includes('guong') || unaccented.includes('kinh chieu hau'))) {
-    matched = DATABASE.filter(function(o) { return (o.articleNo === 14 && o.clauseNo === '1' && o.pointNo === 'a') || (o.articleNo === 13 && o.clauseNo === '1' && o.pointNo === 'a'); });
+    matched = pool.filter(function(o) { return (o.articleNo === 14 && o.clauseNo === '1' && o.pointNo === 'a') || (o.articleNo === 13 && o.clauseNo === '1' && o.pointNo === 'a'); });
     matchReason = 'Khớp quy định về gương chiếu hậu phương tiện (Điều 14 / Điều 13)';
   }
 
-  // 9. Text fallback
+  // 10. Text fallback
   if (matched.length === 0) {
-    matched = DATABASE.filter(function(o) {
+    matched = pool.filter(function(o) {
       var offNorm = removeDiacritics(o.searchText);
       return (o.aliases && o.aliases.some(function(a) { return unaccented.includes(removeDiacritics(a)); })) || offNorm.includes(unaccented);
     });
@@ -253,9 +292,63 @@ function performSearch() {
   if (matched.length > 0) {
     var isGenericLicenseQuery = unaccented.includes('giay phep') || unaccented.includes('bang') || unaccented.includes('gplx');
     var isHelmetQuery = unaccented.includes('mu') || unaccented.includes('non') || unaccented.includes('mbh') || unaccented.includes('cai quai');
+    var isOverloadQuery = unaccented.includes('qua tai') || unaccented.includes('tai trong') || unaccented.includes('cho qua tai');
+    var isAlcoholQuery = unaccented.includes('con') || unaccented.includes('ndc') || unaccented.includes('thoi con');
 
     var hudContent = '';
-    if (isHelmetQuery) {
+    if (isOverloadQuery) {
+      hudContent = '<div class="case-hud">' +
+        '<div class="hud-title">⚖️ PHÂN ĐỊNH MỨC PHẠT XE CHỞ QUÁ TẢI TRỌNG (ĐIỀU 21 & ĐIỀU 32)</div>' +
+        '<div style="font-size: 13px; line-height: 1.55; color: #212121;">' +
+          '<div style="background:white; padding:8px 10px; border-radius:8px; margin-bottom:6px; border:1px solid #E0E0E0;">' +
+            '<b>1. Quá tải từ 10% đến 30%:</b><br>' +
+            '• Người lái: <span style="color:var(--danger); font-weight:800;">800k - 1 triệu</span> <span class="fine-midpoint">Mức TB: 900k</span> (Đ.21.2.a)<br>' +
+            '• Chủ xe: <span style="color:#2E7D32; font-weight:800;">4 - 6 triệu</span> (Cá nhân) / <span style="color:#2E7D32; font-weight:800;">8 - 12 triệu</span> (Tổ chức) (Đ.32.7.e)' +
+          '</div>' +
+          '<div style="background:white; padding:8px 10px; border-radius:8px; margin-bottom:6px; border:1px solid #E0E0E0;">' +
+            '<b>2. Quá tải trên 30% đến 50%:</b><br>' +
+            '• Người lái: <span style="color:var(--danger); font-weight:800;">4 - 6 triệu</span> <span class="fine-midpoint">Mức TB: 5tr</span> | <span style="color:#C62828; font-weight:bold;">Trừ 02 điểm GPLX</span> (Đ.21.5.a)<br>' +
+            '• Chủ xe: <span style="color:#2E7D32; font-weight:800;">10 - 12 triệu</span> (Cá nhân) / <span style="color:#2E7D32; font-weight:800;">20 - 24 triệu</span> (Tổ chức) (Đ.32.11.b)' +
+          '</div>' +
+          '<div style="background:white; padding:8px 10px; border-radius:8px; margin-bottom:6px; border:1px solid #E0E0E0;">' +
+            '<b>3. Quá tải trên 50% đến 100%:</b><br>' +
+            '• Người lái: <span style="color:var(--danger); font-weight:800;">6 - 8 triệu</span> <span class="fine-midpoint">Mức TB: 7tr</span> | <span style="color:#C62828; font-weight:bold;">Trừ 04 điểm GPLX</span> (Đ.21.6.a)<br>' +
+            '• Chủ xe: <span style="color:#2E7D32; font-weight:800;">20 - 26 triệu</span> (Cá nhân) / <span style="color:#2E7D32; font-weight:800;">40 - 52 triệu</span> (Tổ chức) (Đ.32.13.a)' +
+          '</div>' +
+          '<div style="background:white; padding:8px 10px; border-radius:8px; margin-bottom:6px; border:1px solid #E0E0E0;">' +
+            '<b>4. Quá tải trên 100% đến 150%:</b><br>' +
+            '• Người lái: <span style="color:var(--danger); font-weight:800;">14 - 16 triệu</span> <span class="fine-midpoint">Mức TB: 15tr</span> | <span style="color:#C62828; font-weight:bold;">Trừ 08 điểm GPLX</span> (Đ.21.7)<br>' +
+            '• Chủ xe: <span style="color:#2E7D32; font-weight:800;">30 - 40 triệu</span> (Cá nhân) / <span style="color:#2E7D32; font-weight:800;">60 - 80 triệu</span> (Tổ chức) (Đ.32.15)' +
+          '</div>' +
+          '<div style="background:white; padding:8px 10px; border-radius:8px; border:1px solid #E0E0E0;">' +
+            '<b>5. Quá tải trên 150%:</b><br>' +
+            '• Người lái: <span style="color:var(--danger); font-weight:800;">18 - 20 triệu</span> <span class="fine-midpoint">Mức TB: 19tr</span> | <span style="color:#C62828; font-weight:bold;">Trừ 10 điểm GPLX</span> (Đ.21.8.a)<br>' +
+            '• Chủ xe: <span style="color:#2E7D32; font-weight:800;">65 - 75 triệu</span> (Cá nhân) / <span style="color:#2E7D32; font-weight:800;">130 - 150 triệu</span> (Tổ chức) (Đ.32.16.b)' +
+          '</div>' +
+        '</div>' +
+        '<div style="font-weight:700; color:#00695C; font-size:12px; margin-top:8px;">🔧 Biện pháp khắc phục: Buộc hạ tải, đăng kiểm lại, điều chỉnh khối lượng hàng hóa cho phép chở (Khoản 19 Điều 32).</div>' +
+      '</div>';
+    } else if (isAlcoholQuery && (currentCategoryFilter === 'motorcycle' || (matched.some(function(o) { return o.articleNo === 7; }) && !matched.some(function(o) { return o.articleNo === 6; })))) {
+      hudContent = '<div class="case-hud">' +
+        '<div class="hud-title">🍺 NỒNG ĐỘ CỒN XE MÔ TÔ, XE MÁY (ĐIỀU 7)</div>' +
+        '<div style="font-size: 13px; line-height: 1.6; color: #212121;">' +
+          '<div>🛵 <b>Mức 1 (≤ 0,25 mg/L hoặc ≤ 50 mg/100ml):</b> <span style="color:var(--danger); font-weight:800;">2 - 3 triệu đồng</span> <span class="fine-midpoint">Mức TB: 2.5tr</span> | <span style="color:#C62828; font-weight:bold;">Trừ 4đ</span> (Đ.7.6.a)</div>' +
+          '<div style="margin-top:4px;">🛵 <b>Mức 2 (>0,25 - 0,40 mg/L hoặc >50 - 80 mg/100ml):</b> <span style="color:var(--danger); font-weight:800;">6 - 8 triệu đồng</span> <span class="fine-midpoint">Mức TB: 7tr</span> | <span style="color:#C62828; font-weight:bold;">Trừ 10đ</span> (Đ.7.8.b)</div>' +
+          '<div style="margin-top:4px;">🛵 <b>Mức 3 (>0,40 mg/L hoặc >80 mg/100ml):</b> <span style="color:var(--danger); font-weight:800;">8 - 10 triệu đồng</span> <span class="fine-midpoint">Mức TB: 9tr</span> | <span style="color:#6A1B9A; font-weight:bold;">Tước GPLX 22 - 24 tháng</span> (Đ.7.9.d)</div>' +
+        '</div>' +
+        '<div style="font-weight:700; color:#D84315; font-size:12px; margin-top:6px;">⚠️ Biện pháp: Tạm giữ phương tiện đến 07 ngày (Khoản 1 Điểm b Điều 48)</div>' +
+      '</div>';
+    } else if (isAlcoholQuery && currentCategoryFilter === 'car') {
+      hudContent = '<div class="case-hud">' +
+        '<div class="hud-title">🍺 NỒNG ĐỘ CỒN XE Ô TÔ (ĐIỀU 6)</div>' +
+        '<div style="font-size: 13px; line-height: 1.6; color: #212121;">' +
+          '<div>🚗 <b>Mức 1 (≤ 0,25 mg/L hoặc ≤ 50 mg/100ml):</b> <span style="color:var(--danger); font-weight:800;">6 - 8 triệu đồng</span> <span class="fine-midpoint">Mức TB: 7tr</span> | <span style="color:#C62828; font-weight:bold;">Trừ 4đ</span> (Đ.6.6.c)</div>' +
+          '<div style="margin-top:4px;">🚗 <b>Mức 2 (>0,25 - 0,40 mg/L hoặc >50 - 80 mg/100ml):</b> <span style="color:var(--danger); font-weight:800;">18 - 20 triệu đồng</span> <span class="fine-midpoint">Mức TB: 19tr</span> | <span style="color:#C62828; font-weight:bold;">Trừ 10đ</span> (Đ.6.9.a)</div>' +
+          '<div style="margin-top:4px;">🚗 <b>Mức 3 (>0,40 mg/L hoặc >80 mg/100ml):</b> <span style="color:var(--danger); font-weight:800;">30 - 40 triệu đồng</span> <span class="fine-midpoint">Mức TB: 35tr</span> | <span style="color:#6A1B9A; font-weight:bold;">Tước GPLX 22 - 24 tháng</span> (Đ.6.11.a)</div>' +
+        '</div>' +
+        '<div style="font-weight:700; color:#D84315; font-size:12px; margin-top:6px;">⚠️ Biện pháp: Tạm giữ phương tiện đến 07 ngày (Khoản 1 Điểm a Điều 48)</div>' +
+      '</div>';
+    } else if (isHelmetQuery) {
       hudContent = '<div class="case-hud">' +
         '<div class="hud-title">⚖️ QUY ĐỊNH VỀ MŨ BẢO HIỂM (KHOẢN 2 ĐIỀU 7)</div>' +
         '<div style="font-size: 13px; line-height: 1.55; color: #212121;">' +
@@ -617,6 +710,50 @@ function calculateOwner() {
   else el.innerHTML = '<b>Giao xe Ô tô</b> -> Điểm i Khoản 14 Điều 32: Cá nhân phạt <b>28 - 30 triệu</b> (TB: <b>29 triệu</b>), Tổ chức phạt <b>56 - 60 triệu</b> (TB: <b>58 triệu</b>); <b>tạm giữ phương tiện</b> (Khoản 1 Điểm l Điều 48)';
 }
 
+function calculateOverload() {
+  var pctEl = document.getElementById('overloadPct');
+  var pct = pctEl ? (parseFloat(pctEl.value) || 0) : 25;
+  var el = document.getElementById('overloadResult');
+  if (!el) return;
+  if (pct < 10) {
+    el.style.background = '#E8F5E9';
+    el.innerHTML = '<span style="color:#2E7D32; font-weight:bold;">Quá tải dưới 10% (xe xi téc dưới 20%) không bị xử phạt vi phạm hành chính.</span>';
+    return;
+  }
+  el.style.background = '#FFF3E0';
+  if (pct <= 30) {
+    el.innerHTML = '<b>Khung 10% - 30% (Đ.21.2.a & Đ.32.7.e):</b><br>' +
+      '• <b>Người lái xe:</b> Phạt <b>800k - 1 triệu</b> (Mức TB: <b>900 nghìn</b>) (không trừ điểm)<br>' +
+      '• <b>Chủ xe Cá nhân:</b> Phạt <b>4 - 6 triệu</b> (TB: <b>5 triệu</b>)<br>' +
+      '• <b>Chủ xe Tổ chức:</b> Phạt <b>8 - 12 triệu</b> (TB: <b>10 triệu</b>)<br>' +
+      '<span style="color:#00695C; font-weight:bold;">• Buộc hạ phần hàng quá tải theo quy định.</span>';
+  } else if (pct <= 50) {
+    el.innerHTML = '<b>Khung trên 30% - 50% (Đ.21.5.a & Đ.32.11.b):</b><br>' +
+      '• <b>Người lái xe:</b> Phạt <b>4 - 6 triệu</b> (TB: <b>5 triệu</b>), <b style="color:#C62828;">trừ 02 điểm GPLX</b><br>' +
+      '• <b>Chủ xe Cá nhân:</b> Phạt <b>10 - 12 triệu</b> (TB: <b>11 triệu</b>)<br>' +
+      '• <b>Chủ xe Tổ chức:</b> Phạt <b>20 - 24 triệu</b> (TB: <b>22 triệu</b>)<br>' +
+      '<span style="color:#00695C; font-weight:bold;">• Buộc hạ tải, đăng kiểm lại (Đ.32.19.đ).</span>';
+  } else if (pct <= 100) {
+    el.innerHTML = '<b>Khung trên 50% - 100% (Đ.21.6.a & Đ.32.13.a):</b><br>' +
+      '• <b>Người lái xe:</b> Phạt <b>6 - 8 triệu</b> (TB: <b>7 triệu</b>), <b style="color:#C62828;">trừ 04 điểm GPLX</b><br>' +
+      '• <b>Chủ xe Cá nhân:</b> Phạt <b>20 - 26 triệu</b> (TB: <b>23 triệu</b>)<br>' +
+      '• <b>Chủ xe Tổ chức:</b> Phạt <b>40 - 52 triệu</b> (TB: <b>46 triệu</b>)<br>' +
+      '<span style="color:#00695C; font-weight:bold;">• Buộc hạ tải, điều chỉnh thùng xe, đăng kiểm lại (Đ.32.19.đ).</span>';
+  } else if (pct <= 150) {
+    el.innerHTML = '<b>Khung trên 100% - 150% (Đ.21.7 & Đ.32.15):</b><br>' +
+      '• <b>Người lái xe:</b> Phạt <b>14 - 16 triệu</b> (TB: <b>15 triệu</b>), <b style="color:#C62828;">trừ 08 điểm GPLX</b><br>' +
+      '• <b>Chủ xe Cá nhân:</b> Phạt <b>30 - 40 triệu</b> (TB: <b>35 triệu</b>)<br>' +
+      '• <b>Chủ xe Tổ chức:</b> Phạt <b>60 - 80 triệu</b> (TB: <b>70 triệu</b>)<br>' +
+      '<span style="color:#00695C; font-weight:bold;">• Buộc hạ tải, điều chỉnh thùng xe, đăng kiểm lại (Đ.32.19.đ).</span>';
+  } else {
+    el.innerHTML = '<b>Khung trên 150% (Đ.21.8.a & Đ.32.16.b):</b><br>' +
+      '• <b>Người lái xe:</b> Phạt <b>18 - 20 triệu</b> (TB: <b>19 triệu</b>), <b style="color:#C62828;">trừ 10 điểm GPLX</b><br>' +
+      '• <b>Chủ xe Cá nhân:</b> Phạt <b>65 - 75 triệu</b> (TB: <b>70 triệu</b>)<br>' +
+      '• <b>Chủ xe Tổ chức:</b> Phạt <b>130 - 150 triệu</b> (TB: <b>140 triệu</b>)<br>' +
+      '<span style="color:#00695C; font-weight:bold;">• Buộc hạ tải, điều chỉnh thùng xe, đăng kiểm lại (Đ.32.19.đ).</span>';
+  }
+}
+
 function switchTab(tab) {
   document.querySelectorAll('.nav-item').forEach(function(el) { el.classList.remove('active'); });
   document.getElementById('viewHome').style.display = 'none';
@@ -638,6 +775,7 @@ function switchTab(tab) {
     calculateAlcohol();
     calculateLicense();
     calculateOwner();
+    calculateOverload();
   } else if (tab === 'articles') {
     document.getElementById('bnavArticles').classList.add('active');
     document.getElementById('viewArticles').style.display = 'block';
@@ -647,4 +785,4 @@ function switchTab(tab) {
 
 // Initial Load
 DATABASE = JSON.parse(DATABASE_JSON_STR);
-renderList(DATABASE);
+performSearch();

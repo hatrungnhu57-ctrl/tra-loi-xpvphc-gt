@@ -407,6 +407,7 @@ const htmlHeader = `<!DOCTYPE html>
         <div class="chip" onclick="quickSearch('giao xe cho người không bằng')">giao xe cho người không bằng</div>
         <div class="chip" onclick="quickSearch('điểm g khoản 2 điều 7')">điểm g khoản 2 điều 7</div>
         <div class="chip" onclick="quickSearch('không gương')">không gương</div>
+        <div class="chip" onclick="quickSearch('quá tải')">quá tải (10% - 150%)</div>
       </div>
 
       <!-- Case HUD if search applied -->
@@ -518,6 +519,16 @@ const htmlHeader = `<!DOCTYPE html>
           </select>
         </div>
         <div id="licResult" style="padding: 10px; border-radius: 8px; background: #E3F2FD; font-size: 13px;"></div>
+      </div>
+
+            <!-- Overload Tool -->
+      <div class="card">
+        <div style="font-weight: 800; font-size: 14.5px; color: #E65100; margin-bottom: 8px;">🚚 BỘ TÍNH MỨC PHẠT QUÁ TẢI TRỌNG (ĐIỀU 21 & 32)</div>
+        <div style="margin-bottom: 8px;">
+          <label style="font-size: 12px; font-weight: bold; color: #546E7A;">Nhập tỷ lệ % quá tải trọng của xe/trục:</label>
+          <input type="number" id="overloadPct" class="form-control" placeholder="% quá tải (ví dụ: 25, 45, 75, 120, 160)" value="25" oninput="calculateOverload()" style="margin-top: 4px;" />
+        </div>
+        <div id="overloadResult" style="padding: 10px; border-radius: 8px; background: #FFF3E0; font-size: 13px; line-height: 1.5;"></div>
       </div>
 
       <!-- Owner Liability Tool -->
