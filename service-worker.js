@@ -1,4 +1,4 @@
-const CACHE_NAME = 'tra-loi-gt-pro-v1';
+const CACHE_NAME = 'tra-loi-gt-pro-v1790065468664';
 const ASSETS = [
   './',
   './index.html',
