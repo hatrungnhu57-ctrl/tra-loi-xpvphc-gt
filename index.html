@@ -465,7 +465,7 @@
             <div style="font-size: 12px; font-weight: 800; color: #40C4FF;" id="ttksMidpointSummary"></div>
           </div>
           <div style="text-align: right;">
-            <div style="font-size: 12.5px; font-weight: 700; color: #FFD54F;" id="ttksPointsSummary">Đi��m trừ: 0đ</div>
+            <div style="font-size: 12.5px; font-weight: 700; color: #FFD54F;" id="ttksPointsSummary">Điểm trừ: 0đ</div>
             <div style="font-size: 11.5px; font-weight: 700; color: #FF8A80;" id="ttksDetentionSummary"></div>
           </div>
         </div>
@@ -1626,7 +1626,7 @@ function getRelatedOffenses(currentOff) {
     addOff(function(o) { return o.articleNo === 7 && o.clauseNo === '11'; });                        // Tịch thu xe máy (buông 2 tay, bốc đầu)
   }
 
-  // 9. Rơi vãi v���t liệu / Bảo vệ môi trường (Điều 17 & Điều 36)
+  // 9. Rơi vãi vt liệu / Bảo vệ môi trường (Điều 17 & Điều 36)
   else if (art === 17 || (art === 36 && cl === '1' && pt === 'c')) {
     addOff(function(o) { return o.articleNo === 17 && o.clauseNo === '2' && o.pointNo === 'a'; }); // Ô tô rơi vãi
     addOff(function(o) { return o.articleNo === 17 && o.clauseNo === '2' && o.pointNo === 'b'; }); // Lôi kéo bùn đất
