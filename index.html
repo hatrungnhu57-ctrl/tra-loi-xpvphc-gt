@@ -652,8 +652,9 @@ function getAccidentVariantInfo(off) {
 
   // Điều 7: Mô tô, xe máy
   if (art === 7) {
+    var isSpeedOrObserve = off.canonical.toLowerCase().includes('tốc độ') || off.canonical.toLowerCase().includes('quan sát');
     return {
-      targetId: 'off_7_10',
+      targetId: isSpeedOrObserve ? 'off_7_10_a' : 'off_7_10_b',
       legalRef: 'Khoản 10 Điều 7',
       fineMin: 10000000,
       fineMax: 14000000,
@@ -666,8 +667,9 @@ function getAccidentVariantInfo(off) {
 
   // Điều 6: Xe Ô tô
   if (art === 6) {
+    var isSpeedOrObserve = off.canonical.toLowerCase().includes('tốc độ') || off.canonical.toLowerCase().includes('quan sát');
     return {
-      targetId: 'off_6_10',
+      targetId: isSpeedOrObserve ? 'off_6_10_a' : 'off_6_10_b',
       legalRef: 'Khoản 10 Điều 6',
       fineMin: 20000000,
       fineMax: 22000000,
@@ -695,7 +697,7 @@ function getAccidentVariantInfo(off) {
   // Điều 8: Xe máy chuyên dùng
   if (art === 8) {
     return {
-      targetId: 'off_8_8',
+      targetId: 'off_8_8_d',
       legalRef: 'Khoản 8 Điều 8',
       fineMin: 14000000,
       fineMax: 16000000,
@@ -1678,7 +1680,9 @@ function renderRelatedSection(currentOff) {
 }
 
 function openDetailModal(id) {
-  var off = DATABASE.find(function(o) { return o.id === id; });
+  var off = DATABASE.find(function(o) {
+    return o.id === id || o.code === id || (typeof id === 'string' && id.startsWith('off_') && o.id.startsWith(id));
+  });
   if (!off) return;
 
   var midpoint = (off.fineMin && off.fineMax) ? Math.round((off.fineMin + off.fineMax) / 2) : null;
