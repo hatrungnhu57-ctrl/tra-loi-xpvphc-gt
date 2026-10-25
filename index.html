@@ -1884,6 +1884,82 @@
       border-radius: var(--radius-sm);
       display: none;
     }
+    .pdf-error-container {
+      width: 100%;
+      max-width: 520px;
+      margin: 14px auto;
+      padding: 0 8px;
+      box-sizing: border-box;
+      display: none;
+    }
+    .pdf-error-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 20px 16px;
+      text-align: center;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+    }
+    .pdf-error-icon {
+      font-size: 36px;
+      line-height: 1;
+      margin-bottom: 10px;
+    }
+    .pdf-error-title {
+      font-size: 15.5px;
+      font-weight: 800;
+      color: var(--danger, #DC2626);
+      margin-bottom: 8px;
+    }
+    .pdf-error-desc {
+      font-size: 12.5px;
+      color: var(--text);
+      line-height: 1.5;
+      margin-bottom: 14px;
+      background: rgba(220, 38, 38, 0.06);
+      padding: 10px 12px;
+      border-radius: var(--radius-sm);
+      border-left: 3px solid var(--danger, #DC2626);
+      text-align: left;
+    }
+    .pdf-error-solution {
+      background: var(--primary-light, #EAF2FF);
+      border: 1px solid var(--primary-muted, #5A82C8);
+      border-radius: var(--radius-sm);
+      padding: 13px;
+      margin-bottom: 14px;
+      text-align: left;
+    }
+    .pdf-switch-html-btn {
+      width: 100%;
+      background: var(--primary, #0E41A0);
+      color: white;
+      font-weight: 700;
+      font-size: 13.5px;
+      padding: 12px 14px;
+      border-radius: var(--radius-sm);
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      box-shadow: 0 2px 8px rgba(14, 65, 160, 0.25);
+      transition: background 0.15s ease;
+    }
+    .pdf-switch-html-btn:hover {
+      background: var(--primary-hover, #0B3685);
+    }
+    .pdf-error-guide {
+      background: var(--bg-alt, #F1F5F9);
+      border-radius: var(--radius-sm);
+      padding: 11px 12px;
+      text-align: left;
+      font-size: 11.5px;
+      color: var(--text-muted);
+      border: 1px dashed var(--border);
+      line-height: 1.5;
+    }
   </style>
 </head>
 <body>
@@ -2052,7 +2128,7 @@
         <div class="pdf-toolbar-advanced">
           <div class="pdf-nav-group">
             <button class="pdf-btn" onclick="prevPdfPage()">◄ Trước</button>
-            <span>Trang <input type="number" id="cur-pdf-page-input" class="pdf-page-input" value="6" min="1" max="81" onchange="onPdfPageInputChange(this.value)"> / <span id="pdf-total-pages">81</span></span>
+            <span>Trang <input type="number" id="cur-pdf-page-input" class="pdf-page-input" value="1" min="1" max="81" onchange="onPdfPageInputChange(this.value)"> / <span id="pdf-total-pages">81</span></span>
             <button class="pdf-btn" onclick="nextPdfPage()">Sau ►</button>
           </div>
 
@@ -2083,6 +2159,35 @@
         <div id="pdf-loading" class="pdf-loading-overlay">⏳ Đang nạp trang PDF...</div>
         <canvas id="pdf-canvas" class="pdf-canvas-page"></canvas>
         <iframe id="pdf-fallback-frame" class="pdf-fallback-frame"></iframe>
+
+        <!-- THÔNG BÁO HƯỚNG DẪN KHI CHƯA UPLOAD FILE PDF LÊN MÁY CHỦ WEB -->
+        <div id="pdf-error-container" class="pdf-error-container">
+          <div class="pdf-error-card">
+            <div class="pdf-error-icon">📄⚠️</div>
+            <div class="pdf-error-title">Chưa có file PDF trên máy chủ web (Lỗi 404)</div>
+            <div class="pdf-error-desc">
+              Không tìm thấy file <code id="pdf-error-filename" style="font-weight:700; color:var(--danger, #DC2626);">nd168_238_hopnhat.pdf</code> trên máy chủ Vercel/GitHub.
+              <br><small style="color:var(--text-muted);">Nguyên nhân: Bạn đã tải <code>index.html</code> lên GitHub nhưng chưa tải kèm 2 file PDF gốc.</small>
+            </div>
+
+            <div class="pdf-error-solution">
+              <div style="font-weight:700; color:var(--text); font-size:13px; margin-bottom:4px;">💡 Đã có sẵn bản Văn bản Số hóa 100% trong App:</div>
+              <div style="font-size:12px; color:var(--text-muted); margin-bottom:12px; line-height:1.4;">
+                Toàn văn 54 Điều luật đã được tích hợp sẵn 100% trong mã nguồn ứng dụng, xem tức thì offline mà không cần chờ tải file PDF.
+              </div>
+              <button class="pdf-switch-html-btn" id="pdf-btn-quick-html" onclick="switchToHtmlArticle()">
+                📜 Xem ngay Điều luật dạng Văn bản Chuẩn
+              </button>
+            </div>
+
+            <div class="pdf-error-guide">
+              <div style="font-weight:700; color:var(--text); margin-bottom:4px;">🛠️ Để xem được bản scan PDF trên Vercel:</div>
+              Tải thêm 2 file sau vào cùng thư mục với <code>index.html</code> trên GitHub:<br>
+              1. <b><code>nd168_238_hopnhat.pdf</code></b> (828 KB - NĐ Hợp nhất 238/168)<br>
+              2. <b><code>168-nd-cp.signed.pdf</code></b> (4.9 MB - NĐ 168 gốc)
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </section>
@@ -75663,6 +75768,7 @@
     // STATE
     var currentMainTab = 'search';
     var currentStatuteMode = 'html';
+    var currentStatuteNavArticle = 14;
     var currentVehicleFilter = 'all';
     var currentSearchQuery = '';
     var currentCategory = null;
@@ -75749,7 +75855,10 @@
 
     // PDF STATE
     var currentPdfDoc = 'hopnhat'; // 'hopnhat' (81 trang) or '168' (111 trang)
-    var curPdfPageNum = 6;
+    var curPdfPageNum = 1;
+    var loadedPdfDocType = null;
+    var isPdfLoadingDoc = false;
+    var pendingDocLoadPage = null;
     var pdfDocInstance = null;
     var currentPdfScale = 1.35;
     var isRenderingPdf = false;
@@ -75907,7 +76016,7 @@
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
-    function switchStatuteMode(mode) {
+    function switchStatuteMode(mode, targetPage) {
       currentStatuteMode = mode;
       var btnHtml = document.getElementById('btn-mode-html');
       var btnPdf = document.getElementById('btn-mode-pdf');
@@ -75930,7 +76039,15 @@
         pdfControls.style.display = 'block';
         htmlViewer.style.display = 'none';
         pdfViewer.style.display = 'block';
-        loadPdfDocument(currentPdfDoc, curPdfPageNum);
+        var pageToJump = targetPage;
+        if (pageToJump === undefined || pageToJump === null) {
+          if (currentStatuteNavArticle) {
+            pageToJump = getPdfPageForArticle(currentStatuteNavArticle, currentPdfDoc);
+          } else {
+            pageToJump = curPdfPageNum || 1;
+          }
+        }
+        jumpPdfToPage(pageToJump);
       }
     }
 
@@ -77260,6 +77377,7 @@
 
     // IN-APP DEEP LINKING TỪ THẺ TRA CỨU SANG VĂN BẢN LUẬT
     function navigateToStatute(artNo, clauseNo, pointNo, offenseTitle) {
+      currentStatuteNavArticle = artNo || 14;
       lastSearchScrollPos = window.scrollY;
       switchMainTab('statute');
       switchStatuteMode('html');
@@ -77371,9 +77489,86 @@
       return docType === '168' ? '168-nd-cp.signed.pdf' : 'nd168_238_hopnhat.pdf';
     }
 
+    function showPdfMissingError(url) {
+      if (pdfLoading) pdfLoading.style.display = 'none';
+      if (pdfCanvas) pdfCanvas.style.display = 'none';
+      if (pdfFallbackFrame) {
+        pdfFallbackFrame.style.display = 'none';
+        pdfFallbackFrame.src = 'about:blank';
+      }
+      var errContainer = document.getElementById('pdf-error-container');
+      var errFilename = document.getElementById('pdf-error-filename');
+      var btnQuickHtml = document.getElementById('pdf-btn-quick-html');
+
+      var targetArt = currentStatuteNavArticle || getArticleForPdfPage(curPdfPageNum, currentPdfDoc) || 14;
+      if (errFilename) errFilename.innerText = url;
+      if (btnQuickHtml) {
+        btnQuickHtml.innerHTML = '📜 Xem ngay Điều ' + targetArt + ' (Bản Văn bản Chuẩn)';
+      }
+      if (errContainer) errContainer.style.display = 'block';
+    }
+
+    function switchToHtmlArticle() {
+      var art = currentStatuteNavArticle || getArticleForPdfPage(curPdfPageNum, currentPdfDoc) || 14;
+      navigateToStatute(art, null, null, 'Điều ' + art);
+    }
+
     function loadPdfDocument(docType, targetPage) {
+      targetPage = parseInt(targetPage, 10) || curPdfPageNum || 1;
+      curPdfPageNum = targetPage;
+      if (curPdfPageInput) curPdfPageInput.value = targetPage;
+
+      if (pdfDocInstance && loadedPdfDocType === docType) {
+        renderPdfPage(targetPage);
+        return;
+      }
+      if (isPdfLoadingDoc && loadedPdfDocType === docType) {
+        pendingDocLoadPage = targetPage;
+        return;
+      }
+
       var url = getPdfUrl(docType);
+      isPdfLoadingDoc = true;
+      loadedPdfDocType = docType;
+      pendingDocLoadPage = targetPage;
+
+      var errContainer = document.getElementById('pdf-error-container');
+      if (errContainer) errContainer.style.display = 'none';
+      if (pdfFallbackFrame) {
+        pdfFallbackFrame.style.display = 'none';
+        pdfFallbackFrame.src = 'about:blank';
+      }
+      if (pdfCanvas) pdfCanvas.style.display = 'block';
       if (pdfLoading) pdfLoading.style.display = 'flex';
+
+      function handlePdfFailure(err) {
+        console.warn('PDF loading failed for URL:', url, err);
+        var errStr = (err ? ((err.name || '') + ' ' + (err.message || '') + ' ' + (err.status || '')) : '');
+        var isMissing = errStr.indexOf('MissingPDFException') !== -1 ||
+                        errStr.indexOf('404') !== -1 ||
+                        errStr.indexOf('UnexpectedResponseException') !== -1 ||
+                        (err && err.status === 404);
+
+        if (isMissing) {
+          showPdfMissingError(url);
+          return;
+        }
+
+        // On web (HTTP/HTTPS), check file existence with fetch before iframe to avoid Vercel 404 iframe embed
+        if (window.location.protocol === 'http:' || window.location.protocol === 'https:') {
+          fetch(url, { method: 'HEAD' }).then(function(res) {
+            if (!res.ok || res.status === 404) {
+              showPdfMissingError(url);
+            } else {
+              fallbackToIframe(url, targetPage || curPdfPageNum);
+            }
+          }).catch(function() {
+            showPdfMissingError(url);
+          });
+        } else {
+          fallbackToIframe(url, targetPage || curPdfPageNum);
+        }
+      }
 
       if (window.pdfjsLib) {
         window.pdfjsLib.getDocument(url).promise.then(function(pdf) {
@@ -77381,13 +77576,10 @@
           var total = pdf.numPages;
           if (pdfTotalPagesEl) pdfTotalPagesEl.innerText = total;
           if (curPdfPageInput) curPdfPageInput.max = total;
-          renderPdfPage(targetPage || curPdfPageNum);
-        }).catch(function(err) {
-          console.warn('PDF.js loading failed, falling back to standard embed:', err);
-          fallbackToIframe(url, targetPage || curPdfPageNum);
-        });
+          isPdfLoadingDoc = false; var pToRender = pendingDocLoadPage || curPdfPageNum || 1; pendingDocLoadPage = null; renderPdfPage(pToRender);
+        }).catch(handlePdfFailure);
       } else {
-        fallbackToIframe(url, targetPage || curPdfPageNum);
+        handlePdfFailure(new Error('PDF.js not loaded'));
       }
     }
 
@@ -77441,6 +77633,7 @@
     }
 
     function navigateToPdfByArticle(artNo, label, docType) {
+      currentStatuteNavArticle = artNo || 14;
       lastSearchScrollPos = window.scrollY;
       switchMainTab('statute');
       switchStatuteMode('pdf');
@@ -77465,7 +77658,7 @@
       }
 
       var targetPage = getPdfPageForArticle(artNo, currentPdfDoc);
-      jumpPdfToPage(targetPage);
+      switchStatuteMode('pdf', targetPage);
 
       if (returnSearchBanner && returnSearchLabel) {
         var docName = currentPdfDoc === '168' ? 'NĐ 168 (Gốc)' : 'NĐ Hợp Nhất (238/168)';
@@ -77537,7 +77730,19 @@
 
     function openPdfExternal() {
       var url = getPdfUrl(currentPdfDoc);
-      window.open(url + '#page=' + curPdfPageNum, '_blank');
+      if (window.location.protocol === 'http:' || window.location.protocol === 'https:') {
+        fetch(url, { method: 'HEAD' }).then(function(res) {
+          if (!res.ok || res.status === 404) {
+            showPdfMissingError(url);
+          } else {
+            window.open(url + '#page=' + curPdfPageNum, '_blank');
+          }
+        }).catch(function() {
+          showPdfMissingError(url);
+        });
+      } else {
+        window.open(url + '#page=' + curPdfPageNum, '_blank');
+      }
     }
 
     function returnToSearch() {
